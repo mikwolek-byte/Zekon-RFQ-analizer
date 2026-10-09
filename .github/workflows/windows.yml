@@ -22,7 +22,7 @@ jobs:
       - name: Test source GUI
         run: python zekon_rfq.py --smoke-test source-startup.txt
       - name: Build standalone executable
-        run: python -m PyInstaller --clean --noconfirm --onefile --windowed --name Zekon_RFQ zekon_rfq.py
+        run: python -m PyInstaller --clean --noconfirm --onefile --windowed --name Zekon_RFQ --collect-all tkinterdnd2 zekon_rfq.py
       - name: Test executable GUI startup
         shell: pwsh
         run: |

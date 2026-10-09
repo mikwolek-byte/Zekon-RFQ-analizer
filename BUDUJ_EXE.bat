@@ -8,7 +8,7 @@ if not exist .venv\Scripts\python.exe (
 if errorlevel 1 goto error
 .venv\Scripts\python.exe -m pip install "pyinstaller>=6.16,<7"
 if errorlevel 1 goto error
-.venv\Scripts\python.exe -m PyInstaller --clean --noconfirm --onefile --windowed --name Zekon_RFQ zekon_rfq.py
+.venv\Scripts\python.exe -m PyInstaller --clean --noconfirm --onefile --windowed --name Zekon_RFQ --collect-all tkinterdnd2 zekon_rfq.py
 if errorlevel 1 goto error
  echo Gotowe: dist\Zekon_RFQ.exe
  pause

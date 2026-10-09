@@ -49,4 +49,41 @@ class EngineTests(unittest.TestCase):
         row=app.parse_bom([['Profil','Ilość szt'],['IPE',2.5]],'test')[0]
         self.assertIn('całkowitą',row[9]);self.assertEqual(row[8],'')
 
+class AutomaticReportTests(unittest.TestCase):
+    def test_repeated_drawing_notes_are_summarised_once(self):
+        es=app.scan('EXC2 EN 1090-2:2018','drawing1')+app.scan('EXC2 EN 1090-2:2018','drawing2')
+        s=app.Session(evidence=es,automatic=True)
+        row=next(r for r in app.card(s) if r[0]=='Norma i klasa wykonania')
+        self.assertEqual(row[1].count('EXC2'),1)
+        self.assertIn('drawing1',row[2]);self.assertIn('drawing2',row[2])
+        es+=app.scan('EXC3 EN 1090-2:2018','drawing3')
+        row=next(r for r in app.card(s) if r[0]=='Norma i klasa wykonania')
+        self.assertIn('EXC3',row[1]);self.assertIn('EXC2',row[1])
+    def test_automatic_report_keeps_uncertainty_and_unchecked_options(self):
+        s=app.Session(evidence=app.scan('☐ EXC3\n☑ EXC2\nWorkshop splices not permitted','test'),automatic=True)
+        row=next(r for r in app.card(s) if r[0]=='Norma i klasa wykonania')
+        self.assertIn('EXC2',row[1]);self.assertIn('EXC3',row[1])
+        self.assertIn('Do wyjaśnienia',row[3])
+        self.assertIn('Formularz',row[3])
+        self.assertTrue(all(e.status=='Do weryfikacji' for e in s.evidence))
+    def test_pipeline_with_bad_file_and_bom(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td)
+            (p/'spec.txt').write_text('Projekt: P1\nKlient: K1\nEXC2 EN 1090-2:2018\nNELSON Kopfbolzen',encoding='utf-8')
+            (p/'broken.pdf').write_bytes(b'not a PDF')
+            (p/'bom.csv').write_text('Profil;Ilość szt;Długość;Jednostka długości;kg/m\nIPE;2;5;m;20',encoding='utf-8')
+            s=app.generate_automatic([p/'spec.txt',p/'broken.pdf',p/'bom.csv'],p/'report.xlsx')
+            self.assertEqual(s.project,'P1');self.assertEqual(s.client,'K1')
+            self.assertEqual(s.bom[0][8],200)
+            self.assertTrue(any(i.status=='Błąd' for i in s.inventory))
+            self.assertTrue((p/'report.xlsx').exists())
+            output=(p/'report.html').read_text()
+            self.assertIn('EXC2',output);self.assertIn('Raport automatyczny',output)
+            self.assertNotIn('Kopfbolzen',output)
+    def test_conflicting_metadata_not_selected_arbitrarily(self):
+        with tempfile.TemporaryDirectory() as td:
+            p=Path(td);(p/'s.txt').write_text('Project: P1\nProject: P2',encoding='utf-8')
+            s=app.generate_automatic([p/'s.txt'],p/'r.xlsx')
+            self.assertIn('Do wyjaśnienia',s.project);self.assertIn('P1',s.project);self.assertIn('P2',s.project)
+
 if __name__=='__main__':unittest.main()
